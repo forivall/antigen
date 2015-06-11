@@ -108,8 +108,8 @@ antigen-bundles () {
 
     local line
     grep '^[[:space:]]*[^[:space:]#]' | while read line; do
-        # Using `eval` so that we can use the shell-style quoting in each line
-        # piped to `antigen-bundles`.
+        #Using `eval` so that we can use the shell-style quoting in each line
+        #piped to `antigen-bundles`.
         eval "antigen-bundle $line"
     done
 
@@ -254,8 +254,67 @@ antigen-revert () {
 
 }
 
+# TODO Merge this code with function below (-antigen-load) to avoid duplication
+-antigen-dump-file-list () {
+
+    local url="$1"
+    local loc="$2"
+    local make_local_clone="$3"
+
+    # The full location where the plugin is located.
+    local location
+    if $make_local_clone; then
+        location="$(-antigen-get-clone-dir "$url")/"
+    else
+        location="$url/"
+    fi
+
+    [[ $loc != "/" ]] && location="$location$loc"
+
+    if [[ -f "$location" ]]; then
+        echo "$location"
+
+    else
+
+        # Source the plugin script.
+        # FIXME: I don't know. Looks very very ugly. Needs a better
+        # implementation once tests are ready.
+        local script_loc="$(ls "$location" | grep '\.plugin\.zsh$' | head -n1)"
+
+        if [[ -f $location/$script_loc ]]; then
+            # If we have a `*.plugin.zsh`, source it.
+            echo "$location/$script_loc"
+
+        elif [[ -f $location/init.zsh ]]; then
+            # If we have a `init.zsh`
+            if (( $+functions[pmodload] )); then
+                # If pmodload is defined pmodload the module. Remove `modules/`
+                # from loc to find module name.
+                #pmodload "${loc#modules/}"
+            else
+                # Otherwise source it.
+                echo "$location/init.zsh"
+            fi
+
+        elif ls "$location" | grep -l '\.zsh$' &> /dev/null; then
+            # If there is no `*.plugin.zsh` file, source *all* the `*.zsh`
+            # files.
+            for script ($location/*.zsh(N)) { echo "$script" }
+
+        elif ls "$location" | grep -l '\.sh$' &> /dev/null; then
+            # If there are no `*.zsh` files either, we look for and source any
+            # `*.sh` files instead.
+            for script ($location/*.sh(N)) { echo "$script" }
+
+        fi
+
+        # Add to $fpath, for completion(s).
+        #fpath=($location $fpath)
+
+    fi
+}
+
 -antigen-load () {
-  
 
     local url="$1"
     local loc="$2"
@@ -547,6 +606,21 @@ antigen-restore () {
     echo 'Please open a new shell to get the restored changes.'
 }
 
+antigen-clear-cache () {
+  local force=false
+  if [[ $1 == --force ]]; then
+      force=true
+  fi
+
+  if $force || (echo -n '\nClear all cache? [y/N] '; read -q); then
+      -zcache-clear
+      echo 'Done.'
+  else
+      echo
+      echo Nothing deleted.
+  fi
+}
+
 antigen-help () {
     cat <<EOF
 Antigen is a plugin management system for zsh. It makes it easy to grab awesome
@@ -741,6 +815,8 @@ antigen () {
     unfunction -- -set-default
 }
 
+
+
 # Setup antigen's autocompletion
 _antigen () {
     compadd        \
@@ -756,6 +832,7 @@ _antigen () {
         apply      \
         snapshot   \
         restore    \
+        clear-cache \
         help
 }
 
