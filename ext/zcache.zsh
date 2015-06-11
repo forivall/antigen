@@ -14,20 +14,20 @@ function -dots-start-capture () {
     [ -f "$dots__capture__file" ] && rm -f $dots__capture__file
     [ -f "$dots__capture__file_load" ] && rm -f $dots__capture__file_load
 
+    echo "# START ZCACHE GENERATED FILE" >>! $dots__capture__file_load
+
     # save current -antigen-load and shim in a version
     # that logs calls to the catpure file
     eval "function -dots-original$(functions -- -antigen-load)"
     function -antigen-load () {
         local location=$(-antigen-dump-file-list "$1" "$2" "$3")
 
-        echo "# START ZCACHE GENERATED FILE" >>! $dots__capture__file_load
         if [[ ! $location == "" ]]; then
           cat $location >>! $dots__capture__file_load
+          echo ";\n" >>! $dots__capture__file_load
           extensions_paths="$extensions_paths $location"
 
-          echo "\n;\n# End of loaded file\n;\n# Start of loaded file\n ;" >>! $dots__capture__file_load
           echo -antigen-load "$@" >>! $dots__capture__file
-
           -dots-original-antigen-load "$@"
         fi
     }
@@ -68,14 +68,22 @@ function -zcache-done () {
         return
     fi
 
-    echo "\nfpath=($extensions_paths $fpath);\n" >>! $_ANTIGEN_BUNDLE_CACHE_LOAD
-    echo  " # END ZCACHE GENERATED FILE" >>! $_ANTIGEN_BUNDLE_CACHE_LOAD
-    -dots-stop-capture $_ANTIGEN_BUNDLE_CACHE
-
     if ! $__ZCACHE_CAPTURING; then
-        -dots-enable-bundle
+      -dots-enable-bundle
+      return
     fi
 
+    echo "fpath=($extensions_paths $fpath)" >>! $_ANTIGEN_BUNDLE_CACHE_LOAD
+    echo  "# END ZCACHE GENERATED FILE" >>! $_ANTIGEN_BUNDLE_CACHE_LOAD
+
+    # TODO add option
+    # if $_ANTIGEN_CACHE_MINIFY; then
+      sed -i '/^#.*/d' $_ANTIGEN_BUNDLE_CACHE_LOAD
+      sed -i '/^$/d' $_ANTIGEN_BUNDLE_CACHE_LOAD
+      sed -i '/./!d' $_ANTIGEN_BUNDLE_CACHE_LOAD
+    # fi
+
+    -dots-stop-capture $_ANTIGEN_BUNDLE_CACHE
 }
 
 function -zcache-clear () {
