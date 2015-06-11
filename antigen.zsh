@@ -11,6 +11,9 @@
 local _ANTIGEN_BUNDLE_RECORD=""
 local _ANTIGEN_INSTALL_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Cache extension
+source $_ANTIGEN_INSTALL_DIR/ext/zcache.zsh
+
 # Used to defer compinit/compdef
 typeset -a __deferred_compdefs
 compdef () { __deferred_compdefs=($__deferred_compdefs "$*") }
@@ -101,14 +104,16 @@ antigen-bundles () {
     # Bulk add many bundles at one go. Empty lines and lines starting with a `#`
     # are ignored. Everything else is given to `antigen-bundle` as is, no
     # quoting rules applied.
+    -zcache-start
 
     local line
-
     grep '^[[:space:]]*[^[:space:]#]' | while read line; do
         # Using `eval` so that we can use the shell-style quoting in each line
         # piped to `antigen-bundles`.
         eval "antigen-bundle $line"
     done
+
+    -zcache-done
 }
 
 antigen-update () {
@@ -250,6 +255,7 @@ antigen-revert () {
 }
 
 -antigen-load () {
+  
 
     local url="$1"
     local loc="$2"
