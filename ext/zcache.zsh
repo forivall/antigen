@@ -4,7 +4,7 @@ export _ANTIGEN_BUNDLE_CACHE_LOAD=$_ANTIGEN_CACHE_DIR/.zcache.load
 
 # Be sure .cache directory exists
 [[ ! -e $_ANTIGEN_CACHE_DIR ]] && mkdir $_ANTIGEN_CACHE_DIR
-local extensions_paths
+local extensions_paths=""
 
 # TODO Merge this code with -antigen-load function to avoid duplication
 -antigen-dump-file-list () {

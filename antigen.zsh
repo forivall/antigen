@@ -553,8 +553,9 @@ antigen-clear-cache () {
   fi
 
   if $force || (echo -n '\nClear all cache? [y/N] '; read -q); then
+      echo
       -zcache-clear
-      echo 'Done.'
+      echo Done.
   else
       echo
       echo Nothing deleted.
