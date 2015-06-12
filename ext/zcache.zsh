@@ -60,9 +60,6 @@ local extensions_paths=""
 
         fi
 
-        # Add to $fpath, for completion(s).
-        #fpath=($location $fpath)
-
     fi
 }
 
@@ -74,7 +71,7 @@ function -dots-start-capture () {
     [ -f "$dots__capture__file" ] && rm -f $dots__capture__file
     [ -f "$dots__capture__file_load" ] && rm -f $dots__capture__file_load
 
-    echo "# START ZCACHE GENERATED FILE" >>! $dots__capture__file_load
+    echo " # START ZCACHE GENERATED FILE" >>! $dots__capture__file_load
 
     # save current -antigen-load and shim in a version
     # that logs calls to the catpure file
@@ -87,7 +84,6 @@ function -dots-start-capture () {
             echo ";\n" >>! $dots__capture__file_load
             extensions_paths="$extensions_paths $location"
 
-            echo -antigen-load "$@" >>! $dots__capture__file
             -dots-original-antigen-load "$@"
         fi
     }
@@ -108,6 +104,18 @@ function -dots-enable-bundle () {
     eval "function $(functions -- -bundle-original-antigen-bundle | sed 's/-bundle-original-//')"
 }
 
+function -dots-intercept-bundle () {
+    eval "function -bundle-intercepted-$(functions -- antigen-bundle)"
+    function antigen-bundle () {
+        echo "$@" >>! $_ANTIGEN_BUNDLE_CACHE
+        -bundle-intercepted-antigen-bundle "$@"
+    }
+}
+
+function -dots-deintercept-bundle () {
+    eval "function $(functions -- -bundle-intercepted-antigen-bundle | sed 's/-bundle-intercepted-//')"
+}
+
 function -zcache-start () {
     if ! $_ANTIGEN_CACHE_ENABLED; then
         return
@@ -120,6 +128,7 @@ function -zcache-start () {
     else
         __ZCACHE_CAPTURING=true       # mark capturing
         -dots-start-capture $_ANTIGEN_BUNDLE_CACHE $_ANTIGEN_BUNDLE_CACHE_LOAD
+        -dots-intercept-bundle
     fi
 }
 
@@ -131,10 +140,12 @@ function -zcache-done () {
     if ! $__ZCACHE_CAPTURING; then
         -dots-enable-bundle
         return
+    else
+        -dots-deintercept-bundle
     fi
 
     echo "fpath=($extensions_paths $fpath)" >>! $_ANTIGEN_BUNDLE_CACHE_LOAD
-    echo  "# END ZCACHE GENERATED FILE" >>! $_ANTIGEN_BUNDLE_CACHE_LOAD
+    echo  " # END ZCACHE GENERATED FILE" >>! $_ANTIGEN_BUNDLE_CACHE_LOAD
 
     # TODO add option
     # if $_ANTIGEN_CACHE_MINIFY; then
@@ -149,4 +160,14 @@ function -zcache-done () {
 function -zcache-clear () {
     [[ -e $_ANTIGEN_BUNDLE_CACHE ]] && rm $_ANTIGEN_BUNDLE_CACHE
     [[ -e $_ANTIGEN_BUNDLE_CACHE_LOAD ]] && rm $_ANTIGEN_BUNDLE_CACHE_LOAD
+}
+
+function -zcache-rebuild () {
+    local bundles="$(cat $_ANTIGEN_BUNDLE_CACHE)"
+    -zcache-clear
+    -zcache-start
+    echo $bundles | while read line; do
+        eval "antigen-bundle $line"
+    done
+    -zcache-done
 }
