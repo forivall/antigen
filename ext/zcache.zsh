@@ -39,14 +39,14 @@ local extensions_paths=""
 
         elif [[ -f $location/init.zsh ]]; then
             # If we have a `init.zsh`
-            if (( $+functions[pmodload] )); then
+            # if (( $+functions[pmodload] )); then
                 # If pmodload is defined pmodload the module. Remove `modules/`
                 # from loc to find module name.
                 #pmodload "${loc#modules/}"
-            else
+            # else
                 # Otherwise source it.
                 echo "$location/init.zsh"
-            fi
+            # fi
 
         elif ls "$location" | grep -l '\.zsh$' &> /dev/null; then
             # If there is no `*.plugin.zsh` file, source *all* the `*.zsh`
