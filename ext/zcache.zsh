@@ -83,12 +83,12 @@ function -dots-start-capture () {
         local location=$(-antigen-dump-file-list "$1" "$2" "$3")
 
         if [[ ! $location == "" ]]; then
-          cat $location >>! $dots__capture__file_load
-          echo ";\n" >>! $dots__capture__file_load
-          extensions_paths="$extensions_paths $location"
+            cat $location >>! $dots__capture__file_load
+            echo ";\n" >>! $dots__capture__file_load
+            extensions_paths="$extensions_paths $location"
 
-          echo -antigen-load "$@" >>! $dots__capture__file
-          -dots-original-antigen-load "$@"
+            echo -antigen-load "$@" >>! $dots__capture__file
+            -dots-original-antigen-load "$@"
         fi
     }
 }
@@ -129,8 +129,8 @@ function -zcache-done () {
     fi
 
     if ! $__ZCACHE_CAPTURING; then
-      -dots-enable-bundle
-      return
+        -dots-enable-bundle
+        return
     fi
 
     echo "fpath=($extensions_paths $fpath)" >>! $_ANTIGEN_BUNDLE_CACHE_LOAD
@@ -138,15 +138,15 @@ function -zcache-done () {
 
     # TODO add option
     # if $_ANTIGEN_CACHE_MINIFY; then
-      sed -i '/^#.*/d' $_ANTIGEN_BUNDLE_CACHE_LOAD
-      sed -i '/^$/d' $_ANTIGEN_BUNDLE_CACHE_LOAD
-      sed -i '/./!d' $_ANTIGEN_BUNDLE_CACHE_LOAD
+        sed -i '/^#.*/d' $_ANTIGEN_BUNDLE_CACHE_LOAD
+        sed -i '/^$/d' $_ANTIGEN_BUNDLE_CACHE_LOAD
+        sed -i '/./!d' $_ANTIGEN_BUNDLE_CACHE_LOAD
     # fi
 
     -dots-stop-capture $_ANTIGEN_BUNDLE_CACHE
 }
 
 function -zcache-clear () {
-  [[ -e $_ANTIGEN_BUNDLE_CACHE ]] && rm $_ANTIGEN_BUNDLE_CACHE
-  [[ -e $_ANTIGEN_BUNDLE_CACHE_LOAD ]] && rm $_ANTIGEN_BUNDLE_CACHE_LOAD
+    [[ -e $_ANTIGEN_BUNDLE_CACHE ]] && rm $_ANTIGEN_BUNDLE_CACHE
+    [[ -e $_ANTIGEN_BUNDLE_CACHE_LOAD ]] && rm $_ANTIGEN_BUNDLE_CACHE_LOAD
 }
