@@ -546,7 +546,7 @@ antigen-restore () {
     echo 'Please open a new shell to get the restored changes.'
 }
 
-antigen-clear-cache () {
+antigen-cache-clear () {
   local force=false
   if [[ $1 == --force ]]; then
       force=true
@@ -773,7 +773,7 @@ _antigen () {
         apply      \
         snapshot   \
         restore    \
-        clear-cache \
+        cache-clear \
         help
 }
 
