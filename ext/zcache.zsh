@@ -80,10 +80,8 @@ function -dots-start-capture () {
     # save current -antigen-load and shim in a version
     # that logs calls to the catpure file
     eval "function -dots-original$(functions -- -antigen-load)"
-    local location=""
     function -antigen-load () {
-        location=$(-antigen-dump-file-list "$1" "$2" "$3")
-        echo $location | while read line; do
+        -antigen-dump-file-list "$1" "$2" "$3" | while read line; do
             if [[ ! $line == "" ]]; then
                 cat $line >>! $dots__capture__file
                 echo ";\n" >>! $dots__capture__file
@@ -185,8 +183,7 @@ function -zcache-rebuild () {
         if [[ $file == *-meta ]]; then
             context=$(echo $file | sed 's/.zcache.//' | sed 's/-meta//')
             -zcache-start $context
-            bundles+=$(cat "$_ANTIGEN_CACHE_DIR/$file")
-            echo $bundles | while read line; do
+            cat "$_ANTIGEN_CACHE_DIR/$file" | while read line; do
                 eval "antigen-bundle $line"
             done
             -zcache-done
