@@ -1,10 +1,15 @@
 export _ANTIGEN_CACHE_DIR=$_ANTIGEN_INSTALL_DIR/.cache/
-export _ANTIGEN_BUNDLE_CACHE=$_ANTIGEN_CACHE_DIR/.zcache
-export _ANTIGEN_BUNDLE_CACHE_LOAD=$_ANTIGEN_CACHE_DIR/.zcache.load
 
 # Be sure .cache directory exists
 [[ ! -e $_ANTIGEN_CACHE_DIR ]] && mkdir $_ANTIGEN_CACHE_DIR
-local extensions_paths=""
+
+local _zcache_extensions_paths=""
+local _zcache_context=""
+local _zcache_capturing=false
+local _zcache_meta_path=""
+local _zcache_payload_path=""
+local dots__capture__file_load=""
+local dots__capture__file=""
 
 # TODO Merge this code with -antigen-load function to avoid duplication
 -antigen-dump-file-list () {
@@ -69,23 +74,24 @@ function -dots-start-capture () {
 
     # remove prior cache file
     [ -f "$dots__capture__file" ] && rm -f $dots__capture__file
-    [ -f "$dots__capture__file_load" ] && rm -f $dots__capture__file_load
 
-    echo " # START ZCACHE GENERATED FILE" >>! $dots__capture__file_load
+    echo " # START ZCACHE GENERATED FILE" >>! $dots__capture__file
 
     # save current -antigen-load and shim in a version
     # that logs calls to the catpure file
     eval "function -dots-original$(functions -- -antigen-load)"
+    local location=""
     function -antigen-load () {
-        local location=$(-antigen-dump-file-list "$1" "$2" "$3")
+        location=$(-antigen-dump-file-list "$1" "$2" "$3")
+        echo $location | while read line; do
+            if [[ ! $line == "" ]]; then
+                cat $line >>! $dots__capture__file
+                echo ";\n" >>! $dots__capture__file
+                _zcache_extensions_paths="$extensions_paths $line"
 
-        if [[ ! $location == "" ]]; then
-            cat $location >>! $dots__capture__file_load
-            echo ";\n" >>! $dots__capture__file_load
-            extensions_paths="$extensions_paths $location"
-
-            -dots-original-antigen-load "$@"
-        fi
+                -dots-original-antigen-load "$@"
+            fi
+        done
     }
 }
 
@@ -107,7 +113,7 @@ function -dots-enable-bundle () {
 function -dots-intercept-bundle () {
     eval "function -bundle-intercepted-$(functions -- antigen-bundle)"
     function antigen-bundle () {
-        echo "$@" >>! $_ANTIGEN_BUNDLE_CACHE
+        echo "$@" >>! $_zcache_meta_path
         -bundle-intercepted-antigen-bundle "$@"
     }
 }
@@ -121,13 +127,18 @@ function -zcache-start () {
         return
     fi
 
-    __ZCACHE_CAPTURING=false
-    if [ -f $_ANTIGEN_BUNDLE_CACHE ] ; then
-        source $_ANTIGEN_BUNDLE_CACHE_LOAD # cache exists, load it
+    # Set up the context
+    _zcache_context="$1"
+    _zcache_capturing=false
+    _zcache_meta_path="$_ANTIGEN_CACHE_DIR/.zcache.$_zcache_context-meta"
+    _zcache_payload_path="$_ANTIGEN_CACHE_DIR/.zcache.$_zcache_context-payload"
+
+    if [ -f "$_zcache_payload_path" ] ; then
+        source "$_zcache_payload_path" # cache exists, load it
         -dots-disable-bundle          # disable bundle so it won't load bundle twice
     else
-        __ZCACHE_CAPTURING=true       # mark capturing
-        -dots-start-capture $_ANTIGEN_BUNDLE_CACHE $_ANTIGEN_BUNDLE_CACHE_LOAD
+        _zcache_capturing=true       # mark capturing
+        -dots-start-capture $_zcache_payload_path
         -dots-intercept-bundle
     fi
 }
@@ -137,37 +148,48 @@ function -zcache-done () {
         return
     fi
 
-    if ! $__ZCACHE_CAPTURING; then
+    if ! $_zcache_capturing; then
         -dots-enable-bundle
         return
     else
         -dots-deintercept-bundle
     fi
 
-    echo "fpath=($extensions_paths $fpath)" >>! $_ANTIGEN_BUNDLE_CACHE_LOAD
-    echo  " # END ZCACHE GENERATED FILE" >>! $_ANTIGEN_BUNDLE_CACHE_LOAD
+    echo "fpath=($_zcache_extensions_paths $fpath)" >>! $_zcache_payload_path
+    echo  " # END ZCACHE GENERATED FILE" >>! $_zcache_payload_path
 
     # TODO add option
     # if $_ANTIGEN_CACHE_MINIFY; then
-        sed -i '/^#.*/d' $_ANTIGEN_BUNDLE_CACHE_LOAD
-        sed -i '/^$/d' $_ANTIGEN_BUNDLE_CACHE_LOAD
-        sed -i '/./!d' $_ANTIGEN_BUNDLE_CACHE_LOAD
+        sed -i '/^#.*/d' $_zcache_payload_path
+        sed -i '/^$/d' $_zcache_payload_path
+        sed -i '/./!d' $_zcache_payload_path
     # fi
 
-    -dots-stop-capture $_ANTIGEN_BUNDLE_CACHE
+    -dots-stop-capture $_zcache_meta_path
 }
 
 function -zcache-clear () {
-    [[ -e $_ANTIGEN_BUNDLE_CACHE ]] && rm $_ANTIGEN_BUNDLE_CACHE
-    [[ -e $_ANTIGEN_BUNDLE_CACHE_LOAD ]] && rm $_ANTIGEN_BUNDLE_CACHE_LOAD
+    if [ -d "$_ANTIGEN_CACHE_DIR" ]; then
+        # TODO how compatible is this -A flag?
+        ls -A "$_ANTIGEN_CACHE_DIR" | while read file; do
+            rm "$_ANTIGEN_CACHE_DIR/$file"
+        done
+    fi
 }
 
 function -zcache-rebuild () {
-    local bundles="$(cat $_ANTIGEN_BUNDLE_CACHE)"
-    -zcache-clear
-    -zcache-start
-    echo $bundles | while read line; do
-        eval "antigen-bundle $line"
+    local bundles=""
+    local context=""
+
+    ls -A "$_ANTIGEN_CACHE_DIR" | while read file; do
+        if [[ $file == *-meta ]]; then
+            context=$(echo $file | sed 's/.zcache.//' | sed 's/-meta//')
+            -zcache-start $context
+            bundles+=$(cat "$_ANTIGEN_CACHE_DIR/$file")
+            echo $bundles | while read line; do
+                eval "antigen-bundle $line"
+            done
+            -zcache-done
+        fi
     done
-    -zcache-done
 }
