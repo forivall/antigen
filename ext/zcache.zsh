@@ -12,8 +12,9 @@ local dots__capture__file_load=""
 local dots__capture__file=""
 
 # TODO Merge this code with -antigen-load function to avoid duplication
--antigen-dump-file-list () {
-
+-antigen-dump-file-list-array () {
+    local array_var="$1"
+    shift
     local url="$1"
     local loc="$2"
     local make_local_clone="$3"
@@ -29,7 +30,7 @@ local dots__capture__file=""
     [[ $loc != "/" ]] && location="$location$loc"
 
     if [[ -f "$location" ]]; then
-        echo "$location"
+        eval "$array_var+=(\"$location\")"
 
     else
 
@@ -40,7 +41,7 @@ local dots__capture__file=""
 
         if [[ -f $location/$script_loc ]]; then
             # If we have a `*.plugin.zsh`, source it.
-            echo "$location/$script_loc"
+            eval "$array_var+=(\"$location/$script_loc\")"
 
         elif [[ -f $location/init.zsh ]]; then
             # If we have a `init.zsh`
@@ -50,18 +51,18 @@ local dots__capture__file=""
                 #pmodload "${loc#modules/}"
             # else
                 # Otherwise source it.
-                echo "$location/init.zsh"
+                eval "$array_var+=(\"$location/init.zsh\")"
             # fi
 
         elif ls "$location" | grep -l '\.zsh$' &> /dev/null; then
             # If there is no `*.plugin.zsh` file, source *all* the `*.zsh`
             # files.
-            for script ($location/*.zsh(N)) { echo "$script" }
+            for script ($location/*.zsh(N)) { eval "$array_var+=(\"$script\")" }
 
         elif ls "$location" | grep -l '\.sh$' &> /dev/null; then
             # If there are no `*.zsh` files either, we look for and source any
             # `*.sh` files instead.
-            for script ($location/*.sh(N)) { echo "$script" }
+            for script ($location/*.sh(N)) { eval "$array_var+=(\"$script\")" }
 
         fi
 
@@ -80,16 +81,25 @@ function -dots-start-capture () {
     # save current -antigen-load and shim in a version
     # that logs calls to the catpure file
     eval "function -dots-original$(functions -- -antigen-load)"
+    local file_num=0
     function -antigen-load () {
-        -antigen-dump-file-list "$1" "$2" "$3" | while read line; do
-            if [[ ! $line == "" ]]; then
-                cat $line >>! $dots__capture__file
-                echo ";\n" >>! $dots__capture__file
-                _zcache_extensions_paths="$extensions_paths $line"
+      local file_list_array; file_list_array=()
+      local i
+      local line
+      (( file_num++ ))
+      -antigen-dump-file-list-array file_list_array "$1" "$2" "$3"
+      for i in {1..${#file_list_array}}; do
+          line=${file_list_array[$i]}
+          if [[ ! $line == "" ]]; then
+              echo "__zcache_filename${file_num}_${i}=\"$line\"" >>! $dots__capture__file
+              cat $line | sed -E -e 's/\$\{0\}/${'"__zcache_filename${file_num}_$i"'}/g' -e 's/\$0/$'"__zcache_filename${file_num}_$i"'/g' >>! $dots__capture__file
+              # cat $line >>! $dots__capture__file
+              echo ";\n" >>! $dots__capture__file
+              _zcache_extensions_paths="$extensions_paths $line"
 
-                -dots-original-antigen-load "$@"
-            fi
-        done
+              -dots-original-antigen-load "$@"
+          fi
+      done
     }
 }
 
