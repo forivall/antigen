@@ -1,4 +1,8 @@
-export _ANTIGEN_CACHE_DIR=$_ANTIGEN_INSTALL_DIR/.cache/
+
+: ${_ANTIGEN_CACHE_ENABLED:=false}
+: ${_ANTIGEN_CACHE_MINIFY:=true}
+: ${_ANTIGEN_CACHE_DIR:=$_ANTIGEN_INSTALL_DIR/.cache}
+export _ANTIGEN_CACHE_DIR
 
 # Be sure .cache directory exists
 [[ ! -e $_ANTIGEN_CACHE_DIR ]] && mkdir $_ANTIGEN_CACHE_DIR
@@ -167,10 +171,10 @@ function -zcache-done () {
     echo  " # END ZCACHE GENERATED FILE" >>! $_zcache_payload_path
 
     # TODO add option
-    # if $_ANTIGEN_CACHE_MINIFY; then
+    if $_ANTIGEN_CACHE_MINIFY; then
         sed -i -e '/^#.*/d' -e '/^$/d' -e '/./!d' $_zcache_payload_path
         chmod 644 $_zcache_payload_path
-    # fi
+    fi
 
     -dots-stop-capture $_zcache_meta_path
 }
