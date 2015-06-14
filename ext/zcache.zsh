@@ -158,9 +158,8 @@ function -zcache-done () {
 
     # TODO add option
     # if $_ANTIGEN_CACHE_MINIFY; then
-        sed -i '/^#.*/d' $_zcache_payload_path
-        sed -i '/^$/d' $_zcache_payload_path
-        sed -i '/./!d' $_zcache_payload_path
+        sed -i -e '/^#.*/d' -e '/^$/d' -e '/./!d' $_zcache_payload_path
+        chmod 644 $_zcache_payload_path
     # fi
 
     -dots-stop-capture $_zcache_meta_path
